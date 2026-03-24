@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeForce Cloud Gaming</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    
+    .nvidia-green { color: #76b900; }
+    .bg-nvidia-green { background-color: #76b900; }
+    .hover-nvidia-green:hover { background-color: #8fd41f; }
+
+    .game-card {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      height: 100%;
+    }
+    .game-card:hover {
+      transform: translateY(-8px) scale(1.03);
+      box-shadow: 0 20px 25px -5px rgb(118 185 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+    }
+    
+    .modal {
+      animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes modalPop {
+      from { opacity: 0; transform: scale(0.7) translateY(40px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    
+    .progress-bar { transition: width 0.15s linear; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen">
+
+  <!-- SIGN IN SCREEN -->
+  <div id="signin-screen" class="fixed inset-0 bg-black flex items-center justify-center z-50">
+    <div class="max-w-md w-full bg-zinc-900 p-10 rounded-3xl border border-zinc-800">
+      <div class="flex justify-center mb-8">
+        <div class="flex items-center gap-3">
+          <i class="fa-solid fa-nvidia text-6xl nvidia-green"></i>
+          <span class="text-4xl font-bold tracking-tighter">GEFORCE</span>
+        </div>
+      </div>
+      <h1 class="text-3xl font-semibold text-center mb-2">Welcome to GeForce</h1>
+      <p class="text-zinc-400 text-center mb-8">Sign in to access your games</p>
+      
+      <div class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-zinc-400 mb-1.5">Choose your username</label>
+          <input id="username-input" type="text" placeholder="Enter username" 
+                 class="w-full bg-zinc-800 border border-zinc-700 focus:border-[#76b900] focus:outline-none rounded-2xl px-5 py-4 text-lg">
+        </div>
+        
+        <button onclick="signIn()" 
+                class="w-full bg-nvidia-green hover-nvidia-green transition-colors text-black font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2">
+          <i class="fa-solid fa-arrow-right"></i> CONTINUE
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="main-app" class="hidden flex h-screen">
+    
+    <!-- SIDEBAR -->
+    <div class="w-64 bg-zinc-950 border-r border-zinc-900 flex flex-col">
+      <div class="p-6 flex items-center gap-3 border-b border-zinc-900">
+        <i class="fa-solid fa-nvidia text-4xl nvidia-green"></i>
+        <span class="text-2xl font-bold tracking-tighter">GEFORCE</span>
+      </div>
+      
+      <div class="flex-1 py-8 px-4">
+        <div onclick="switchTab(0)" id="sidebar-library" 
+             class="sidebar-item flex items-center gap-4 px-6 py-4 rounded-2xl cursor-pointer mb-2 hover:bg-zinc-900">
+          <i class="fa-solid fa-layer-group text-xl"></i>
+          <span class="font-medium">Library</span>
+        </div>
+        
+        <div onclick="switchTab(1)" id="sidebar-store" 
+             class="sidebar-item flex items-center gap-4 px-6 py-4 rounded-2xl cursor-pointer hover:bg-zinc-900">
+          <i class="fa-solid fa-store text-xl"></i>
+          <span class="font-medium">Store</span>
+        </div>
+      </div>
+      
+      <div class="p-6 border-t border-zinc-900">
+        <div class="flex items-center gap-3">
+          <div id="sidebar-avatar" class="w-10 h-10 bg-nvidia-green rounded-2xl flex items-center justify-center text-2xl text-black">👤</div>
+          <div>
+            <div id="display-username" class="font-semibold"></div>
+            <div class="text-xs text-zinc-500">Online</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT AREA -->
+    <div class="flex-1 flex flex-col">
+      
+      <!-- TOP BAR -->
+      <div class="h-16 bg-zinc-900 border-b border-zinc-800 flex items-center px-8 justify-between">
+        <div id="page-title" class="text-2xl font-semibold">Library</div>
+        
+        <div class="flex items-center gap-8">
+          <div id="top-username" class="font-medium text-zinc-300"></div>
+          <div id="top-avatar" class="w-9 h-9 bg-nvidia-green rounded-2xl flex items-center justify-center text-xl text-black cursor-pointer hover:scale-110 transition">👤</div>
+        </div>
+      </div>
+
+      <!-- LIBRARY VIEW -->
+      <div id="library-view" class="flex-1 p-8 overflow-auto">
+        <div id="library-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6"></div>
+        
+        <div id="empty-library" class="hidden flex-col items-center justify-center h-full text-center pt-20">
+          <div class="text-7xl mb-6 opacity-50">🎮</div>
+          <h3 class="text-2xl font-medium mb-2">Your Library is Empty</h3>
+          <p class="text-zinc-400">Install some games at the store!</p>
+        </div>
+      </div>
+
+      <!-- STORE VIEW -->
+      <div id="store-view" class="flex-1 p-8 overflow-auto hidden">
+        <h2 id="store-title" class="text-3xl font-semibold mb-8">Featured Games</h2>
+        <div id="store-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME DETAIL MODAL -->
+  <div id="game-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+    <div class="modal bg-zinc-900 w-full max-w-lg rounded-3xl overflow-hidden border border-[#76b900]/30">
+      <div id="modal-hero" class="h-80 bg-cover bg-center relative">
+        <button onclick="closeModal()" class="absolute top-4 right-4 bg-black/60 hover:bg-black/80 w-10 h-10 rounded-full flex items-center justify-center transition text-white">✕</button>
+      </div>
+      <div class="p-8">
+        <h2 id="modal-name" class="text-4xl font-bold mb-6"></h2>
+        
+        <button id="install-btn" onclick="installGame()"
+                class="w-full bg-nvidia-green hover-nvidia-green text-black font-semibold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 transition-all min-h-[58px]">
+          <span id="install-text">INSTALL</span>
+        </button>
+        
+        <div id="install-progress" class="hidden mt-6">
+          <div class="flex justify-between text-sm mb-2">
+            <span>Installing...</span>
+            <span id="progress-percent">0%</span>
+          </div>
+          <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+            <div id="progress-bar" class="progress-bar h-full w-0 bg-nvidia-green rounded-full"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allGames = [
+        { name: "Fortnite", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBt7PxHbURQ8IYYcDVZ7iCS4-P0siDuW_RWg&s", url: "https://0706970-collab.github.io/Build-Now-GG/" },
+        { name: "Rocket League", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT4G8_3jrU2I9aXyjm8OJ-IqoWSrlFsjAqypcRBmPdGJbgk758P:https://www.designyourway.net/blog/wp-content/uploads/2024/11/Rocket-League-Logo-featured-1.jpg&s", url: "https://martinmmcyt.github.io/rocket-goal/" },
+        { name: "Minecraft", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS41c9v6aj92gUaCoXuFdgiIya0M6P34Ebo8mDVU4yDfzBx08Hi:https://logo.com/image-cdn/images/kts928pd/production/e1d61cc6d5f05c33c1cd0fbf96c51554671750ba-1140x620.png%3Fw%3D1920%26q%3D72%26fm%3Dwebp&s", url: "https://shadownetworkdevs.github.io/" },
+        { name: "Paper.io 2", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPPo5OWo27pb-Mi5D8Rg9HTRFX4uEtwz0xbA&s", url: "https://manscod.github.io/other/paperio2/" },
+        { name: "Bank Robbery", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmJsG3jRHt-y6iPUlGZzsoxsIjsCaJuvHP2g&s", url: "https://0706970-collab.github.io/bank-robbery/" },
+        { name: "They Are Coming", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSzVQTs8yI_8QV6BmdVG6U5LfooOlZBYgAS7i97XGkIzm35p-9L:https://img.gg.deals/60/15/12fb13e8dfe1f236dfc49743e9268146b2d0_1232xr706_Q100.jpg&s", url: "https://jasongamesdev.github.io/they-are-coming/" },
+        { name: "Funny Shooter 2", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSG1a2gfOetwF3C8Lfc2GLPPK82K1_2fD0pIg&s", url: "https://jasongamesdev.github.io/funny-shooter-2/" },
+        { name: "Stick Fighter", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQMDIip8to-Z0UAKO2KIzQuFqHxD7gJsH7qMA&s", url: "https://23azostore.github.io/s6/stick-fighter" },
+    ];
+
+    let installedGames = [];
+    let currentUsername = "";
+    let currentGame = null;
+    let currentTab = 0;
+
+    function signIn() {
+      const username = document.getElementById("username-input").value.trim();
+      if (!username) return alert("Please enter a username!");
+      
+      currentUsername = username;
+      document.getElementById("display-username").textContent = username;
+      document.getElementById("top-username").textContent = username;
+      
+      document.getElementById("signin-screen").classList.add("hidden");
+      document.getElementById("main-app").classList.remove("hidden");
+      
+      renderLibrary();
+      renderStore();
+      switchTab(0);
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      
+      // Sidebar green highlight
+      const lib = document.getElementById("sidebar-library");
+      const store = document.getElementById("sidebar-store");
+      if (tab === 0) {
+        lib.classList.add("bg-zinc-900", "text-[#76b900]");
+        store.classList.remove("bg-zinc-900", "text-[#76b900]");
+      } else {
+        store.classList.add("bg-zinc-900", "text-[#76b900]");
+        lib.classList.remove("bg-zinc-900", "text-[#76b900]");
+      }
+      
+      // Show correct view
+      document.getElementById("library-view").classList.toggle("hidden", tab !== 0);
+      document.getElementById("store-view").classList.toggle("hidden", tab !== 1);
+      
+      // Top bar title - ALWAYS WHITE (as requested)
+      const titleEl = document.getElementById("page-title");
+      titleEl.textContent = tab === 0 ? "Library" : "Store";
+      // Removed green from store title
+    }
+
+    function renderStore() {
+      const container = document.getElementById("store-grid");
+      container.innerHTML = "";
+      
+      allGames.forEach(game => {
+        const isInstalled = installedGames.some(g => g.name === game.name);
+        const div = document.createElement("div");
+        div.className = `game-card bg-zinc-900 rounded-3xl overflow-hidden cursor-pointer border border-transparent hover:border-[#76b900]/50`;
+        div.innerHTML = `
+          <div class="relative">
+            <img src="${game.img}" class="w-full aspect-video object-cover">
+            ${isInstalled ? `
+            <div class="absolute bottom-3 right-3 bg-emerald-500 text-black text-xs font-bold px-3 py-1 rounded-2xl flex items-center gap-1 shadow-lg">
+              <i class="fa-solid fa-check"></i> INSTALLED
+            </div>` : ''}
+          </div>
+          <div class="p-4 flex items-center justify-between">
+            <h3 class="font-semibold text-lg">${game.name}</h3>
+          </div>
+        `;
+        div.onclick = () => showGameModal(game);
+        container.appendChild(div);
+      });
+    }
+
+    function renderLibrary() {
+      const container = document.getElementById("library-grid");
+      container.innerHTML = "";
+      const empty = document.getElementById("empty-library");
+      
+      if (installedGames.length === 0) {
+        empty.classList.remove("hidden");
+        return;
+      }
+      empty.classList.add("hidden");
+      
+      installedGames.forEach(game => {
+        const div = document.createElement("div");
+        div.className = `game-card bg-zinc-900 rounded-3xl overflow-hidden cursor-pointer border border-transparent hover:border-[#76b900]/50`;
+        div.innerHTML = `
+          <div class="relative">
+            <img src="${game.img}" class="w-full aspect-video object-cover">
+          </div>
+          <div class="p-4 flex items-center justify-between">
+            <h3 class="font-semibold text-lg">${game.name}</h3>
+            <div onclick="event.stopImmediatePropagation(); uninstallGame('${game.name}')" 
+                 class="w-8 h-8 hover:bg-zinc-800 rounded-2xl flex items-center justify-center text-2xl leading-none text-zinc-400 hover:text-white transition cursor-pointer">
+              ⋮
+            </div>
+          </div>
+        `;
+        div.onclick = (e) => {
+          if (!e.target.closest('.w-8')) launchGame(game);
+        };
+        container.appendChild(div);
+      });
+    }
+
+    function showGameModal(game) {
+      currentGame = game;
+      document.getElementById("modal-hero").style.backgroundImage = `url('${game.img}')`;
+      document.getElementById("modal-name").textContent = game.name;
+      
+      const isInstalled = installedGames.some(g => g.name === game.name);
+      const btn = document.getElementById("install-btn");
+      const progressContainer = document.getElementById("install-progress");
+      
+      if (isInstalled) {
+        btn.innerHTML = `<span class="flex items-center justify-center gap-3"><i class="fa-solid fa-check"></i> INSTALLED</span>`;
+        btn.disabled = true;
+        btn.classList.add("!bg-emerald-600", "!text-white");
+      } else {
+        btn.innerHTML = `<span id="install-text">INSTALL</span>`;
+        btn.disabled = false;
+        btn.classList.remove("!bg-emerald-600", "!text-white");
+        progressContainer.classList.add("hidden");
+      }
+      
+      document.getElementById("game-modal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("game-modal").classList.add("hidden");
+    }
+
+    function installGame() {
+      if (!currentGame) return;
+      const btn = document.getElementById("install-btn");
+      const progressContainer = document.getElementById("install-progress");
+      const progressBar = document.getElementById("progress-bar");
+      const percentText = document.getElementById("progress-percent");
+      
+      btn.style.display = "none";
+      progressContainer.classList.remove("hidden");
+      
+      let progress = 0;
+      const duration = Math.random() * 3000 + 5000;
+      const startTime = Date.now();
+      
+      const interval = setInterval(() => {
+        progress = Math.min(100, Math.floor(((Date.now() - startTime) / duration) * 100));
+        progressBar.style.width = progress + "%";
+        percentText.textContent = progress + "%";
+        if (progress >= 100) {
+          clearInterval(interval);
+          finishInstall();
+        }
+      }, 40);
+    }
+
+    function finishInstall() {
+      if (!currentGame || installedGames.some(g => g.name === currentGame.name)) return;
+      installedGames.push({...currentGame});
+      renderLibrary();
+      renderStore();
+      
+      const btn = document.getElementById("install-btn");
+      btn.style.display = "flex";
+      btn.innerHTML = `<span class="flex items-center justify-center gap-3"><i class="fa-solid fa-check"></i> INSTALLED</span>`;
+      btn.disabled = true;
+      btn.classList.add("!bg-emerald-600", "!text-white");
+      document.getElementById("install-progress").classList.add("hidden");
+    }
+
+    function launchGame(game) {
+      const win = window.open("about:blank", "_blank");
+      if (win) {
+        win.document.write(`
+          <!DOCTYPE html><html><head><title>${game.name}</title>
+          <style>body,html{margin:0;padding:0;height:100%;overflow:hidden;background:#000;}iframe{width:100%;height:100%;border:none;}</style></head>
+          <body><iframe src="${game.url}" allowfullscreen></iframe></body></html>
+        `);
+      }
+    }
+
+    function uninstallGame(gameName) {
+      if (confirm(`Uninstall ${gameName}?`)) {
+        installedGames = installedGames.filter(g => g.name !== gameName);
+        renderLibrary();
+        renderStore();
+      }
+    }
+
+    document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+  </script>
+</body>
+</html>
